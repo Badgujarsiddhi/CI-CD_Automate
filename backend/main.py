@@ -6,6 +6,12 @@ import requests
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+try:
+    from groq import Groq
+    GROQ_AVAILABLE = True
+except ImportError:
+    GROQ_AVAILABLE = False
+
 app = FastAPI(title="PharmaGuide Backend", version="1.0.0")
 
 app.add_middleware(
@@ -375,17 +381,17 @@ def build_llm_explanation(
     risk_label: str,
 ) -> Dict[str, Any]:
     """
-    Generate explanation text via Ollama LLM when available.
+    Generate explanation text via Groq API (free tier available).
     If the LLM is unavailable or fails, return a neutral, non-clinical
     placeholder message (no rule-based clinical logic or error text).
     """
     rs_text = ", ".join(rsids_for_gene) if rsids_for_gene else "no specific pharmacogenomic variants listed"
 
-    # Get Ollama configuration from environment variables
-    ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    ollama_model = os.getenv("OLLAMA_MODEL", "llama3.2:3b")  # Default to llama3.2:3b for 8GB RAM
+    # Get Groq API configuration from environment variables
+    groq_api_key = os.getenv("GROQ_API_KEY", "")
+    groq_model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")  # Fast, free model
     
-    if not ollama_base_url:
+    if not groq_api_key or not GROQ_AVAILABLE:
         return {
             "summary": (
                 "A narrative explanation could not be generated automatically. "
@@ -426,29 +432,23 @@ def build_llm_explanation(
             "Generate a clear, professional explanation suitable for clinical use."
         )
         
-        # Call Ollama API
-        api_url = f"{ollama_base_url}/api/chat"
-        payload = {
-            "model": ollama_model,
-            "messages": [
+        # Call Groq API
+        client = Groq(api_key=groq_api_key)
+        
+        chat_completion = client.chat.completions.create(
+            messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            "options": {
-                "temperature": 0.2,
-                "num_predict": 500,  # max tokens
-            },
-            "stream": False,
-        }
+            model=groq_model,
+            temperature=0.2,
+            max_tokens=500,
+        )
         
-        response = requests.post(api_url, json=payload, timeout=60)
-        response.raise_for_status()
-        
-        result = response.json()
-        llm_text = result.get("message", {}).get("content", "")
+        llm_text = chat_completion.choices[0].message.content
         
         if not llm_text:
-            raise ValueError("Empty response from Ollama")
+            raise ValueError("Empty response from Groq API")
         
         # Split into summary and mechanism if possible, otherwise use full text for both
         sentences = llm_text.split(". ")
@@ -463,9 +463,9 @@ def build_llm_explanation(
             "summary": summary.strip(),
             "mechanism": mechanism.strip(),
             "cited_variants": rsids_for_gene,
-            "source": f"ollama_{ollama_model}",
+            "source": f"groq_{groq_model}",
         }
-    except (requests.RequestException, ValueError, KeyError) as exc:
+    except Exception as exc:
         return {
             "summary": (
                 "A narrative explanation could not be generated at this time. "
