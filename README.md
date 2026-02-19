@@ -4,9 +4,8 @@ PharmaGuard is an end-to-end **HealthTech project** that converts raw genomic da
 
 This project is designed to be **hackathon-ready**, beginner-friendly, and scalable for real-world clinical use.
 
----
 
-## 🚨 Problem Statement
+# 🚨 Problem Statement
 
 Pharmacogenomic data is increasingly available, but it is:
 
@@ -20,9 +19,8 @@ As a result, patients face:
 * Incorrect dosing
 * Delayed or unsafe treatment decisions
 
----
 
-## 💡 Solution Overview
+# 💡 Solution Overview
 
 **PharmaGuard** bridges the gap between genomics and clinical decisions by:
 
@@ -33,9 +31,8 @@ As a result, patients face:
 * Predicting drug risk for new patient data
 * Producing a structured, explainable JSON output
 
----
 
-## ✨ Key Features
+# ✨ Key Features
 
 * 📂 Direct VCF file ingestion
 * 🧬 Pharmacogenomic feature extraction
@@ -44,9 +41,8 @@ As a result, patients face:
 * 📊 Explainable and structured output
 * 🔌 API-ready architecture
 
----
 
-## 🧪 Sample Output
+# 🧪 Sample Output
 
 ```json
 {
@@ -63,7 +59,7 @@ As a result, patients face:
     "phenotype": "PM"
   }
 }
----
+
 
 ## 🚀 How to Run the Project
 
@@ -78,9 +74,8 @@ Upload a VCF file and receive risk predictions.
 
 > Labels are derived using clinically inspired pharmacogenomic rules for hackathon feasibility.
 
----
 
-## 🧬 Sample VCF File
+# 🧬 Sample VCF File
 
 A synthetic VCF file (`sample_pharmaguard.vcf`) is included for testing.
 
@@ -90,9 +85,8 @@ It contains:
 * Clinically relevant PGx genes (CYP2C9, CYP2D6, VKORC1)
 * Valid VCF v4.2 format
 
----
 
-## 🔮 Future Scope
+# 🔮 Future Scope
 
 * Integration with real clinical PGx datasets
 * Support for more genes and drug classes
@@ -100,9 +94,8 @@ It contains:
 * Advanced explainability using LLMs
 * Regulatory dashboards for drug safety monitoring
 
----
 
-## 🏆 Hackathon Note
+# 🏆 Hackathon Note
 
 This project is intentionally:
 
@@ -112,9 +105,8 @@ This project is intentionally:
 
 It demonstrates **clear problem understanding**, **working ML**, and **real-world relevance** — exactly what hackathon judges look for.
 
----
 
-## 📜 License
+# 📜 License
 
 This project is for educational and hackathon use only.
 
