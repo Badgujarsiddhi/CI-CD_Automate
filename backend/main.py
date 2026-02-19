@@ -12,6 +12,10 @@ try:
 except ImportError:
     GROQ_AVAILABLE = False
 
+# Groq API key – replace with your key from https://console.groq.com/keys
+# WARNING: Do not commit real keys to public repositories
+GROQ_API_KEY_HARDCODED = "YOUR_GROQ_API_KEY_HERE"
+
 app = FastAPI(title="PharmaGuide Backend", version="1.0.0")
 
 app.add_middleware(
@@ -387,11 +391,11 @@ def build_llm_explanation(
     """
     rs_text = ", ".join(rsids_for_gene) if rsids_for_gene else "no specific pharmacogenomic variants listed"
 
-    # Get Groq API configuration from environment variables
-    groq_api_key = os.getenv("GROQ_API_KEY", "")
+    # Get Groq API key: env var first, then fallback to hardcoded
+    groq_api_key = os.getenv("GROQ_API_KEY", "").strip() or GROQ_API_KEY_HARDCODED
     groq_model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")  # Fast, free model
-    
-    if not groq_api_key or not GROQ_AVAILABLE:
+
+    if not groq_api_key or groq_api_key == "YOUR_GROQ_API_KEY_HERE" or not GROQ_AVAILABLE:
         return {
             "summary": (
                 "A narrative explanation could not be generated automatically. "
