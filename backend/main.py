@@ -1,10 +1,10 @@
 from datetime import datetime
 import os
 from typing import List, Dict, Any
+import requests
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from openai import OpenAI, OpenAIError
 
 app = FastAPI(title="PharmaGuide Backend", version="1.0.0")
 
@@ -219,14 +219,17 @@ def build_llm_explanation(
     risk_label: str,
 ) -> Dict[str, Any]:
     """
-    Generate explanation text via LLM when available.
+    Generate explanation text via Ollama LLM when available.
     If the LLM is unavailable or fails, return a neutral, non-clinical
     placeholder message (no rule-based clinical logic or error text).
     """
     rs_text = ", ".join(rsids_for_gene) if rsids_for_gene else "no specific pharmacogenomic variants listed"
 
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
+    # Get Ollama configuration from environment variables
+    ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    ollama_model = os.getenv("OLLAMA_MODEL", "llama3.2:3b")  # Default to llama3.2:3b for 8GB RAM
+    
+    if not ollama_base_url:
         return {
             "summary": (
                 "A narrative explanation could not be generated automatically. "
@@ -238,8 +241,14 @@ def build_llm_explanation(
         }
 
     try:
-        client = OpenAI(api_key=api_key)
-        prompt = (
+        system_prompt = (
+            "You are an expert clinical pharmacogenomics assistant. "
+            "You provide accurate, evidence-based explanations of pharmacogenomic test results. "
+            "Always cite specific variants (rsIDs) and explain biological mechanisms clearly. "
+            "Do not invent facts or make unsupported claims."
+        )
+        
+        user_prompt = (
             "You are an expert clinical pharmacogenomics assistant. "
             "Generate a detailed explanation for the following pharmacogenomic assessment.\n\n"
             "REQUIREMENTS:\n"
@@ -260,24 +269,30 @@ def build_llm_explanation(
             f"Clinical Recommendation: {recommendation}\n\n"
             "Generate a clear, professional explanation suitable for clinical use."
         )
-        completion = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are an expert clinical pharmacogenomics assistant. "
-                        "You provide accurate, evidence-based explanations of pharmacogenomic test results. "
-                        "Always cite specific variants (rsIDs) and explain biological mechanisms clearly. "
-                        "Do not invent facts or make unsupported claims."
-                    ),
-                },
-                {"role": "user", "content": prompt},
+        
+        # Call Ollama API
+        api_url = f"{ollama_base_url}/api/chat"
+        payload = {
+            "model": ollama_model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
             ],
-            temperature=0.2,
-            max_tokens=500,
-        )
-        llm_text = completion.choices[0].message.content or ""
+            "options": {
+                "temperature": 0.2,
+                "num_predict": 500,  # max tokens
+            },
+            "stream": False,
+        }
+        
+        response = requests.post(api_url, json=payload, timeout=60)
+        response.raise_for_status()
+        
+        result = response.json()
+        llm_text = result.get("message", {}).get("content", "")
+        
+        if not llm_text:
+            raise ValueError("Empty response from Ollama")
         
         # Split into summary and mechanism if possible, otherwise use full text for both
         sentences = llm_text.split(". ")
@@ -292,9 +307,9 @@ def build_llm_explanation(
             "summary": summary.strip(),
             "mechanism": mechanism.strip(),
             "cited_variants": rsids_for_gene,
-            "source": "openai_gpt_4o",
+            "source": f"ollama_{ollama_model}",
         }
-    except OpenAIError as exc:
+    except (requests.RequestException, ValueError, KeyError) as exc:
         return {
             "summary": (
                 "A narrative explanation could not be generated at this time. "
