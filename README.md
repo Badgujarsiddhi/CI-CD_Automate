@@ -5,7 +5,7 @@ PharmaGuard is an end-to-end **HealthTech project** that converts raw genomic da
 This project is designed to be **hackathon-ready**, beginner-friendly, and scalable for real-world clinical use.
 
 
-# 🚨 Problem Statement
+## 🚨 Problem Statement
 
 Pharmacogenomic data is increasingly available, but it is:
 
@@ -20,7 +20,7 @@ As a result, patients face:
 * Delayed or unsafe treatment decisions
 
 
-# 💡 Solution Overview
+## 💡 Solution Overview
 
 **PharmaGuard** bridges the gap between genomics and clinical decisions by:
 
@@ -32,7 +32,7 @@ As a result, patients face:
 * Producing a structured, explainable JSON output
 
 
-# ✨ Key Features
+## ✨ Key Features
 
 * 📂 Direct VCF file ingestion
 * 🧬 Pharmacogenomic feature extraction
@@ -42,7 +42,7 @@ As a result, patients face:
 * 🔌 API-ready architecture
 
 
-# 🧪 Sample Output
+## 🧪 Sample Output
 
 ```json
 {
@@ -75,7 +75,7 @@ Upload a VCF file and receive risk predictions.
 > Labels are derived using clinically inspired pharmacogenomic rules for hackathon feasibility.
 
 
-# 🧬 Sample VCF File
+## 🧬 Sample VCF File
 
 A synthetic VCF file (`sample_pharmaguard.vcf`) is included for testing.
 
@@ -86,7 +86,7 @@ It contains:
 * Valid VCF v4.2 format
 
 
-# 🔮 Future Scope
+## 🔮 Future Scope
 
 * Integration with real clinical PGx datasets
 * Support for more genes and drug classes
@@ -95,7 +95,7 @@ It contains:
 * Regulatory dashboards for drug safety monitoring
 
 
-# 🏆 Hackathon Note
+## 🏆 Hackathon Note
 
 This project is intentionally:
 
@@ -106,7 +106,7 @@ This project is intentionally:
 It demonstrates **clear problem understanding**, **working ML**, and **real-world relevance** — exactly what hackathon judges look for.
 
 
-# 📜 License
+## 📜 License
 
 This project is for educational and hackathon use only.
 
