@@ -1,0 +1,2 @@
+# ps3_paraguide
+PharmaGuard is an AI-powered web app that analyzes VCF genomic data to predict drug-specific pharmacogenomic risks. It detects variants in key genes (CYP2D6, CYP2C19, CYP2C9, SLCO1B1, TPMT, DPYD), classifies risk levels, aligns dosing with CPIC guidelines, and generates explainable LLM-based clinical insights in structured JSON format.
