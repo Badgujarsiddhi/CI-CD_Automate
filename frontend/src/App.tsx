@@ -68,11 +68,34 @@ const SUPPORTED_DRUGS = [
   "FLUOROURACIL",
 ];
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+
+// Parse and validate drug input; returns { valid: string[], invalid: string[] }
+function parseAndValidateDrugs(input: string): { valid: string[]; invalid: string[] } {
+  const trimmed = input
+    .split(/[,\s]+/)
+    .map((d) => d.trim().toUpperCase())
+    .filter(Boolean);
+  const valid: string[] = [];
+  const invalid: string[] = [];
+  const seen = new Set<string>();
+  for (const d of trimmed) {
+    if (seen.has(d)) continue;
+    seen.add(d);
+    if (SUPPORTED_DRUGS.includes(d)) {
+      valid.push(d);
+    } else {
+      invalid.push(d);
+    }
+  }
+  return { valid, invalid };
+}
 
 export const App: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [drugInput, setDrugInput] = useState("");
+  const [selectedDrugs, setSelectedDrugs] = useState<Set<string>>(new Set());
+  const [inputMode, setInputMode] = useState<"text" | "dropdown">("text");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<DrugResult[] | null>(null);
@@ -80,17 +103,20 @@ export const App: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.length) return;
     const selected = e.target.files[0];
+    setError(null);
     if (!selected.name.endsWith(".vcf")) {
-      setError("Only .vcf files are supported.");
+      setError(
+        "Invalid file type. Please upload a valid VCF file (.vcf extension). " +
+        "VCF files contain genetic variant data in the standard format."
+      );
       setFile(null);
       return;
     }
     if (selected.size > 5 * 1024 * 1024) {
-      setError("File size must be less than or equal to 5 MB.");
+      setError("File size exceeds the 5 MB limit. Please upload a smaller VCF file.");
       setFile(null);
       return;
     }
-    setError(null);
     setFile(selected);
   };
 
@@ -98,22 +124,42 @@ export const App: React.FC = () => {
     e.preventDefault();
     const selected = e.dataTransfer.files?.[0];
     if (!selected) return;
+    setError(null);
     if (!selected.name.endsWith(".vcf")) {
-      setError("Only .vcf files are supported.");
+      setError(
+        "Invalid file type. Please upload a valid VCF file (.vcf extension). " +
+        "VCF files contain genetic variant data in the standard format."
+      );
       setFile(null);
       return;
     }
     if (selected.size > 5 * 1024 * 1024) {
-      setError("File size must be less than or equal to 5 MB.");
+      setError("File size exceeds the 5 MB limit. Please upload a smaller VCF file.");
       setFile(null);
       return;
     }
-    setError(null);
     setFile(selected);
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+  };
+
+  const toggleDrugSelection = (drug: string) => {
+    setSelectedDrugs((prev) => {
+      const next = new Set(prev);
+      if (next.has(drug)) next.delete(drug);
+      else next.add(drug);
+      return next;
+    });
+  };
+
+  const getDrugsToAnalyze = (): string[] => {
+    if (inputMode === "dropdown") {
+      return Array.from(selectedDrugs);
+    }
+    const { valid } = parseAndValidateDrugs(drugInput);
+    return valid;
   };
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -122,17 +168,43 @@ export const App: React.FC = () => {
     setResults(null);
 
     if (!file) {
-      setError("Please upload a VCF file.");
+      setError("Please upload a VCF file before analyzing.");
       return;
     }
-    if (!drugInput.trim()) {
-      setError("Please enter at least one drug.");
+
+    const drugs = getDrugsToAnalyze();
+
+    if (drugs.length === 0) {
+      if (inputMode === "dropdown") {
+        setError("Please select at least one drug from the list.");
+      } else {
+        const { invalid } = parseAndValidateDrugs(drugInput);
+        if (invalid.length > 0) {
+          setError(
+            `The following drug(s) are not supported: ${invalid.join(", ")}. ` +
+            `Supported drugs: ${SUPPORTED_DRUGS.join(", ")}.`
+          );
+        } else {
+          setError("Please enter at least one drug. You can use comma-separated values (e.g., CODEINE, WARFARIN).");
+        }
+      }
       return;
+    }
+
+    if (inputMode === "text") {
+      const { invalid } = parseAndValidateDrugs(drugInput);
+      if (invalid.length > 0) {
+        setError(
+          `The following drug(s) are not supported: ${invalid.join(", ")}. ` +
+          `Supported drugs: ${SUPPORTED_DRUGS.join(", ")}.`
+        );
+        return;
+      }
     }
 
     const formData = new FormData();
     formData.append("vcf_file", file);
-    formData.append("drugs", drugInput);
+    formData.append("drugs", drugs.join(", "));
 
     setLoading(true);
     try {
@@ -141,33 +213,54 @@ export const App: React.FC = () => {
         body: formData,
       });
       const data = await res.json();
+
       if (!res.ok) {
-        setError(data.error || "Failed to analyze VCF.");
-        setLoading(false);
+        const detail = data.detail;
+        if (typeof detail === "string") {
+          const lower = detail.toLowerCase();
+          if (lower.includes("parse") || lower.includes("vcf") || lower.includes("failed")) {
+            setError(
+              "The uploaded file could not be parsed. Please ensure it is a valid VCF file (v4.2 format) " +
+              "with proper header (#CHROM, POS, REF, ALT, INFO) and variant rows."
+            );
+          } else {
+            setError(detail);
+          }
+        } else if (Array.isArray(detail)) {
+          const msg = detail.map((d: { msg?: string }) => d.msg || JSON.stringify(d)).join(" ");
+          setError(msg || "The request could not be processed. Please check your input and try again.");
+        } else {
+          setError("An error occurred while analyzing your file. Please verify your VCF file and drug selection, then try again.");
+        }
         return;
       }
-      setResults(data.results as DrugResult[]);
-    } catch (err: any) {
-      setError(err.message || "Network error.");
+
+      const resList = data.results as DrugResult[];
+      setResults(resList);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.includes("fetch") || message.includes("network") || message.toLowerCase().includes("failed")) {
+        setError(
+          "Unable to connect to the server. Please check your internet connection and ensure " +
+          "the backend is running at " + API_BASE_URL + "."
+        );
+      } else {
+        setError("An unexpected error occurred. Please try again. " + (message ? `(${message})` : ""));
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const getRiskColor = (severity: RiskSeverity, label: string) => {
-    if (label.toLowerCase().includes("toxic")) return "#f97373"; // red
-    switch (severity) {
-      case "none":
-      case "low":
-        return "#4ade80"; // green
-      case "moderate":
-        return "#facc15"; // yellow
-      case "high":
-      case "critical":
-        return "#f97373"; // red
-      default:
-        return "#e5e7eb"; // gray
-    }
+  // Color-coded per spec: Green = Safe, Yellow = Adjust, Red = Toxic/Ineffective
+  const getRiskColor = (severity: RiskSeverity, label: string): string => {
+    const lower = label.toLowerCase();
+    if (lower.includes("toxic") || lower.includes("ineffective")) return "#dc2626"; // red
+    if (lower.includes("adjust") || lower.includes("dosage")) return "#eab308"; // yellow
+    if (lower.includes("safe") || severity === "none" || severity === "low") return "#22c55e"; // green
+    if (severity === "moderate") return "#eab308"; // yellow
+    if (severity === "high" || severity === "critical") return "#dc2626"; // red
+    return "#6b7280"; // gray for Unknown
   };
 
   const handleCopyJson = () => {
@@ -229,22 +322,80 @@ export const App: React.FC = () => {
         <section className="card">
           <h2>2. Select Drugs</h2>
           <p className="hint">
-            Supported: {SUPPORTED_DRUGS.join(", ")}. You can enter comma-separated
-            values or any subset.
+            Choose input method: type drug names (comma-separated) or select from the dropdown list.
           </p>
+
+          <div className="drug-input-tabs">
+            <button
+              type="button"
+              className={inputMode === "text" ? "tab-active" : "tab-inactive"}
+              onClick={() => setInputMode("text")}
+            >
+              Text Input
+            </button>
+            <button
+              type="button"
+              className={inputMode === "dropdown" ? "tab-active" : "tab-inactive"}
+              onClick={() => setInputMode("dropdown")}
+            >
+              Multi-Select
+            </button>
+          </div>
+
           <form onSubmit={onSubmit} className="form">
-            <input
-              type="text"
-              value={drugInput}
-              onChange={(e) => setDrugInput(e.target.value)}
-              placeholder="e.g. CODEINE, WARFARIN"
-              className="text-input"
-            />
+            {inputMode === "text" ? (
+              <div className="drug-input-wrapper">
+                <input
+                  type="text"
+                  value={drugInput}
+                  onChange={(e) => {
+                    setDrugInput(e.target.value);
+                    setError(null);
+                  }}
+                  placeholder="e.g. CODEINE, WARFARIN, CLOPIDOGREL"
+                  className="text-input"
+                  aria-label="Drug names (comma-separated)"
+                />
+                {drugInput.trim() && (() => {
+                  const { valid, invalid } = parseAndValidateDrugs(drugInput);
+                  return (
+                    <div className="drug-validation">
+                      {valid.length > 0 && (
+                        <span className="validation-ok">✓ {valid.length} valid: {valid.join(", ")}</span>
+                      )}
+                      {invalid.length > 0 && (
+                        <span className="validation-warn">
+                          Unsupported: {invalid.join(", ")} — choose from {SUPPORTED_DRUGS.join(", ")}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            ) : (
+              <div className="drug-multiselect">
+                {SUPPORTED_DRUGS.map((drug) => (
+                  <label key={drug} className="drug-checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={selectedDrugs.has(drug)}
+                      onChange={() => toggleDrugSelection(drug)}
+                    />
+                    <span>{drug}</span>
+                  </label>
+                ))}
+                {selectedDrugs.size > 0 && (
+                  <p className="hint" style={{ marginTop: "0.5rem" }}>
+                    Selected: {Array.from(selectedDrugs).join(", ")}
+                  </p>
+                )}
+              </div>
+            )}
             <button type="submit" className="primary-button" disabled={loading}>
               {loading ? "Analyzing..." : "Analyze"}
             </button>
           </form>
-          {error && <p className="error">{error}</p>}
+          {error && <div className="error-box" role="alert">{error}</div>}
         </section>
 
         {results && (
@@ -252,14 +403,30 @@ export const App: React.FC = () => {
             <div className="results-header">
               <h2>3. Results</h2>
               <div className="results-actions">
-                <button onClick={handleCopyJson} className="secondary-button">
+                <button onClick={handleCopyJson} className="secondary-button" title="Copy results to clipboard">
                   Copy JSON
                 </button>
-                <button onClick={handleDownloadJson} className="secondary-button">
+                <button onClick={handleDownloadJson} className="secondary-button" title="Download as JSON file">
                   Download JSON
                 </button>
               </div>
             </div>
+
+            <div className="risk-legend">
+              <span className="legend-item" style={{ backgroundColor: "#22c55e" }}>Safe</span>
+              <span className="legend-item" style={{ backgroundColor: "#eab308" }}>Adjust Dosage</span>
+              <span className="legend-item" style={{ backgroundColor: "#dc2626" }}>Toxic / Ineffective</span>
+            </div>
+
+            {results.some(
+              (r) =>
+                r.quality_metrics?.variant_count === 0 && r.pharmacogenomic_profile?.diplotype === "*1/*1"
+            ) && (
+              <div className="info-banner" role="status">
+                Some genetic annotations may be missing in your VCF file. Results are based on available data.
+                For more accurate assessment, ensure your VCF includes GENE= and RS= in the INFO field.
+              </div>
+            )}
 
             <div className="results-list">
               {results.map((r) => (
@@ -326,12 +493,14 @@ export const App: React.FC = () => {
                               fontWeight: "600",
                               color: r.cpic_dosing_recommendations.action === "avoid" ? "#dc2626" : 
                                      r.cpic_dosing_recommendations.action === "avoid_or_severe_reduction" ? "#dc2626" :
-                                     r.cpic_dosing_recommendations.action === "reduce_dose" ? "#f59e0b" : "#059669"
+                                     r.cpic_dosing_recommendations.action === "reduce_dose" ? "#f59e0b" : 
+                                     r.cpic_dosing_recommendations.action === "standard_dose" ? "#059669" : "#059669"
                             }}>
                               {r.cpic_dosing_recommendations.action === "avoid" ? "⚠️ Avoid Drug" :
                                r.cpic_dosing_recommendations.action === "avoid_or_severe_reduction" ? "⚠️ Avoid or Severe Dose Reduction Required" :
                                r.cpic_dosing_recommendations.action === "reduce_dose" ? "📉 Reduce Dose" :
                                r.cpic_dosing_recommendations.action === "consider_alternative" ? "🔄 Consider Alternative" :
+                               r.cpic_dosing_recommendations.action === "standard_dose" ? "✅ Standard Dose" :
                                r.cpic_dosing_recommendations.action}
                             </p>
                           </div>

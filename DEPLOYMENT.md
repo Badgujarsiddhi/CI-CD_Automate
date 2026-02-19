@@ -1,203 +1,316 @@
-# Deployment Guide for PharmaGuide
+# PharmaGuard Deployment Guide
 
-This guide explains how to deploy the PharmaGuide application with Ollama LLM support on Vercel.
+This guide covers deploying PharmaGuard with Docker and Ollama to various cloud platforms.
 
-## Architecture Overview
+## Prerequisites
 
-The application consists of:
-- **Frontend**: React/Vite application
-- **Backend**: FastAPI Python application
-- **LLM**: Ollama (hosted separately, accessed via API)
+- Docker and Docker Compose installed locally (for testing)
+- Git repository (GitHub, GitLab, etc.)
+- Account on your chosen cloud platform
 
-## Important Note: Ollama Deployment
+---
 
-**Vercel cannot run Ollama models directly** because:
-- Vercel is a serverless platform with execution time limits
-- Ollama models require persistent storage and memory
-- Model files are too large for serverless functions
+## Option 1: Railway (Recommended - Easiest)
 
-### Solution: Separate Ollama Service
+Railway supports Docker Compose and is the simplest option.
 
-You have two options:
+### Steps:
 
-#### Option 1: Host Ollama on a Separate Service (Recommended)
-
-Deploy Ollama on a service that supports long-running processes:
-- **Railway** (recommended for simplicity)
-- **Render**
-- **Fly.io**
-- **DigitalOcean App Platform**
-- **Your own VPS/server**
-
-Then configure your Vercel deployment to call the Ollama API.
-
-#### Option 2: Use Ollama Cloud API
-
-Use a managed Ollama service if available, or run Ollama locally for development.
-
-## Setup Instructions
-
-### 1. Install and Configure Ollama Locally (for Development)
-
-1. **Install Ollama**: Download from https://ollama.ai
-
-2. **Pull a suitable model for 8GB RAM**:
+1. **Push code to GitHub**
    ```bash
-   # Recommended models for pharmacogenomics on 8GB RAM:
-   ollama pull llama3.2:3b        # ~2GB, fast, good for structured tasks
-   # OR
-   ollama pull mistral:7b         # ~4GB, better reasoning, requires more RAM
-   # OR
-   ollama pull phi3:mini          # ~2GB, Microsoft model, good for medical
+   git init
+   git add .
+   git commit -m "Initial commit"
+   git remote add origin <your-github-repo-url>
+   git push -u origin main
    ```
 
-3. **Start Ollama** (runs on http://localhost:11434 by default):
+2. **Deploy on Railway**
+   - Go to [railway.app](https://railway.app)
+   - Sign up/login with GitHub
+   - Click "New Project" → "Deploy from GitHub repo"
+   - Select your repository
+   - Railway will detect `docker-compose.yml`
+   - **Important**: Railway may need adjustments:
+     - Go to project settings → "Variables"
+     - Set memory limit to **8GB** minimum
+     - Railway will deploy all services automatically
+
+3. **Configure Ollama Model**
+   - After deployment, open Railway dashboard
+   - Click on the `ollama` service
+   - Open "Logs" tab
+   - Wait for model download to complete (~5-15 min)
+   - Or SSH into container: `railway run ollama pull llama3.2:3b`
+
+4. **Access Your App**
+   - Railway provides a public URL (e.g., `yourapp.up.railway.app`)
+   - Frontend will be available at that URL
+
+**Cost**: ~$20-40/month (depends on RAM usage)
+
+---
+
+## Option 2: Render (Good Alternative)
+
+Render supports Docker but requires separate services.
+
+### Steps:
+
+1. **Push to GitHub** (same as Railway)
+
+2. **Create Services on Render**
+   
+   **a) Ollama Service:**
+   - Go to [render.com](https://render.com)
+   - New → "Web Service"
+   - Connect GitHub repo
+   - Settings:
+     - **Name**: `pharmaguard-ollama`
+     - **Environment**: Docker
+     - **Dockerfile Path**: (create a simple one, see below)
+     - **Instance Type**: Standard (8GB RAM)
+     - **Health Check Path**: `/api/tags`
+   
+   **b) Backend Service:**
+   - New → "Web Service"
+   - Settings:
+     - **Name**: `pharmaguard-backend`
+     - **Environment**: Docker
+     - **Dockerfile Path**: `backend/Dockerfile`
+     - **Environment Variables**:
+       - `OLLAMA_BASE_URL`: `http://pharmaguard-ollama:11434`
+       - `OLLAMA_MODEL`: `llama3.2:3b`
+   
+   **c) Frontend Service:**
+   - New → "Static Site" or "Web Service"
+   - If Web Service: Use `frontend/Dockerfile`
+   - If Static Site: Build command: `npm run build`, Publish: `dist`
+
+3. **Note**: Render services communicate via internal network. Update `OLLAMA_BASE_URL` to use Render's internal hostname.
+
+**Cost**: ~$25-50/month (Ollama needs 8GB instance)
+
+---
+
+## Option 3: Fly.io (Good for Docker)
+
+Fly.io excels at Docker deployments.
+
+### Steps:
+
+1. **Install Fly CLI**
    ```bash
-   ollama serve
+   # Windows (PowerShell)
+   iwr https://fly.io/install.ps1 -useb | iex
    ```
 
-4. **Test the API**:
+2. **Create Fly App**
    ```bash
-   curl http://localhost:11434/api/chat -d '{
-     "model": "llama3.2:3b",
-     "messages": [{"role": "user", "content": "Hello"}]
-   }'
+   cd Pharma_Guard
+   fly launch
+   ```
+   - Follow prompts
+   - Select region
+   - **Important**: Fly.io doesn't support docker-compose directly
+   - You'll need to deploy services separately or use Fly's multi-machine setup
+
+3. **Deploy Ollama**
+   ```bash
+   fly apps create pharmaguard-ollama
+   fly deploy -c fly.ollama.toml  # Create this config
    ```
 
-### 2. Configure Environment Variables
+4. **Deploy Backend**
+   ```bash
+   fly apps create pharmaguard-backend
+   fly deploy -c fly.backend.toml
+   ```
 
-Create a `.env` file in the backend directory (for local development):
+5. **Deploy Frontend**
+   ```bash
+   fly apps create pharmaguard-frontend
+   fly deploy -c fly.frontend.toml
+   ```
 
+**Cost**: ~$15-30/month (pay for what you use)
+
+---
+
+## Option 4: DigitalOcean App Platform
+
+### Steps:
+
+1. **Push to GitHub**
+
+2. **Create App on DigitalOcean**
+   - Go to [cloud.digitalocean.com](https://cloud.digitalocean.com)
+   - Apps → Create App → GitHub
+   - Select repository
+
+3. **Configure Services**
+   - DigitalOcean will detect Docker Compose
+   - **Important**: Set Ollama service to **8GB RAM** minimum
+   - Set environment variables for backend
+
+4. **Deploy**
+   - Click "Create Resources"
+   - Wait for deployment (~10-20 min)
+
+**Cost**: ~$24-48/month (8GB droplet)
+
+---
+
+## Option 5: Self-Hosted VPS (Most Control)
+
+Deploy on your own server (DigitalOcean Droplet, AWS EC2, Hetzner, etc.).
+
+### Steps:
+
+1. **Create VPS**
+   - Minimum: **8GB RAM, 2 CPU cores, 50GB disk**
+   - OS: Ubuntu 22.04 LTS
+
+2. **SSH into Server**
+   ```bash
+   ssh root@your-server-ip
+   ```
+
+3. **Install Docker**
+   ```bash
+   curl -fsSL https://get.docker.com -o get-docker.sh
+   sh get-docker.sh
+   apt install docker-compose-plugin -y
+   ```
+
+4. **Clone Repository**
+   ```bash
+   git clone <your-repo-url>
+   cd Pharma_Guard
+   ```
+
+5. **Deploy**
+   ```bash
+   docker compose up -d --build
+   ```
+
+6. **Set Up Reverse Proxy (Nginx)**
+   ```bash
+   apt install nginx certbot python3-certbot-nginx -y
+   # Configure nginx to proxy to localhost:80
+   certbot --nginx -d yourdomain.com
+   ```
+
+7. **Access App**
+   - Frontend: `http://yourdomain.com`
+   - Backend: `http://yourdomain.com/api`
+
+**Cost**: ~$12-24/month (VPS)
+
+---
+
+## Option 6: AWS/GCP/Azure (Enterprise)
+
+For production at scale:
+
+- **AWS**: Use ECS (Elastic Container Service) with Fargate
+- **GCP**: Use Cloud Run or GKE (Google Kubernetes Engine)
+- **Azure**: Use Container Instances or AKS
+
+These require more setup but offer better scaling and reliability.
+
+---
+
+## Quick Test Before Deploying
+
+Test locally first:
+
+```bash
+cd Pharma_Guard
+docker compose up --build
+```
+
+- Frontend: http://localhost
+- Backend: http://localhost:8000
+- Ollama: http://localhost:11434
+
+Check logs:
+```bash
+docker compose logs ollama  # Wait for model download
+docker compose logs backend
+docker compose logs frontend
+```
+
+---
+
+## Environment Variables Reference
+
+### Backend (FastAPI)
 ```env
-OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_BASE_URL=http://ollama:11434
 OLLAMA_MODEL=llama3.2:3b
 ```
 
-For production (Vercel), set these as environment variables in the Vercel dashboard:
-- `OLLAMA_BASE_URL`: Your Ollama service URL (e.g., `https://your-ollama-service.railway.app`)
-- `OLLAMA_MODEL`: Model name (e.g., `llama3.2:3b`)
+### Frontend (React)
+```env
+VITE_API_BASE_URL=  # Empty for same-origin (Docker)
+# OR for separate domains:
+VITE_API_BASE_URL=https://your-backend-url.com
+```
 
-### 3. Deploy Ollama Service (Example: Railway)
-
-1. **Create a Railway account** at https://railway.app
-
-2. **Create a new project** and add a service
-
-3. **Use Railway's Docker template** or create a `Dockerfile`:
-   ```dockerfile
-   FROM ollama/ollama:latest
-   EXPOSE 11434
-   ```
-
-4. **Deploy** and note the public URL
-
-5. **Pull the model** on the deployed service:
-   ```bash
-   # SSH into Railway or use their CLI
-   ollama pull llama3.2:3b
-   ```
-
-### 4. Deploy to Vercel
-
-1. **Install Vercel CLI** (if not already installed):
-   ```bash
-   npm i -g vercel
-   ```
-
-2. **Login to Vercel**:
-   ```bash
-   vercel login
-   ```
-
-3. **Set environment variables**:
-   ```bash
-   vercel env add OLLAMA_BASE_URL
-   vercel env add OLLAMA_MODEL
-   ```
-
-4. **Deploy**:
-   ```bash
-   vercel --prod
-   ```
-
-   Or connect your GitHub repository to Vercel for automatic deployments.
-
-### 5. Frontend Deployment
-
-The frontend should be built and served by Vercel. Update `vercel.json` routes if needed to serve static files from the `frontend/dist` directory after building.
-
-## Model Recommendations for Pharmacogenomics
-
-For an 8GB laptop, these models work well:
-
-1. **llama3.2:3b** (Recommended)
-   - Size: ~2GB
-   - Good for structured explanations
-   - Fast inference
-   - Command: `ollama pull llama3.2:3b`
-
-2. **mistral:7b**
-   - Size: ~4GB
-   - Better reasoning capabilities
-   - Requires more RAM
-   - Command: `ollama pull mistral:7b`
-
-3. **phi3:mini**
-   - Size: ~2GB
-   - Good for medical/clinical tasks
-   - Command: `ollama pull phi3:mini`
-
-## Testing
-
-1. **Test locally**:
-   ```bash
-   cd backend
-   uvicorn main:app --reload
-   ```
-
-2. **Test Ollama connection**:
-   ```bash
-   curl http://localhost:11434/api/chat -d '{
-     "model": "llama3.2:3b",
-     "messages": [{"role": "user", "content": "Explain pharmacogenomics"}]
-   }'
-   ```
-
-3. **Test the API endpoint**:
-   ```bash
-   curl -X POST http://localhost:8000/api/analyze \
-     -F "vcf_file=@test.vcf" \
-     -F "drugs=WARFARIN"
-   ```
+---
 
 ## Troubleshooting
 
-### Ollama Connection Issues
+**Ollama out of memory**
+- Increase container memory limit to 8GB+
+- Or use a smaller model: `llama3.2:1b`
 
-- **Check Ollama is running**: `curl http://localhost:11434/api/tags`
-- **Verify model is pulled**: `ollama list`
-- **Check environment variables**: Ensure `OLLAMA_BASE_URL` is set correctly
-- **Network issues**: If deploying on separate services, ensure CORS is configured
+**Backend can't reach Ollama**
+- Ensure services are on same Docker network
+- Check `OLLAMA_BASE_URL` environment variable
+- Verify Ollama is running: `docker compose ps`
 
-### Vercel Deployment Issues
+**Model not loading**
+- Check Ollama logs: `docker compose logs ollama`
+- Manually pull: `docker exec pharmaguard-ollama ollama pull llama3.2:3b`
+- Wait for download (first time takes 5-15 min)
 
-- **Python version**: Ensure Python 3.11+ is available
-- **Dependencies**: Check that all packages in `requirements.txt` are compatible
-- **Timeout**: Vercel has a 10s timeout for Hobby plan, 60s for Pro. Ollama calls may take longer - consider using background jobs or increasing timeout
+**Frontend can't reach backend**
+- Check nginx proxy configuration
+- Verify backend is running: `docker compose ps backend`
+- Check browser console for CORS errors
 
-### Performance Optimization
+---
 
-- Use smaller models (3B parameters) for faster responses
-- Consider caching LLM responses for similar queries
-- Use streaming responses if supported by your frontend
+## Recommended for Beginners
 
-## Alternative: Using Ollama Cloud (if available)
+**Start with Railway** - It's the easiest:
+1. Push to GitHub
+2. Connect Railway to repo
+3. Railway handles everything automatically
+4. Just wait for Ollama model to download
 
-If Ollama Cloud or similar services become available, you can use them instead of self-hosting:
+---
 
-```env
-OLLAMA_BASE_URL=https://api.ollama.cloud
-OLLAMA_API_KEY=your_api_key
-```
+## Cost Comparison
 
-Update `main.py` to include API key authentication if needed.
+| Platform | Monthly Cost | Difficulty | Best For |
+|----------|--------------|------------|----------|
+| Railway | $20-40 | ⭐ Easy | Quick deployment |
+| Render | $25-50 | ⭐⭐ Medium | Separate services |
+| Fly.io | $15-30 | ⭐⭐ Medium | Docker experts |
+| DigitalOcean | $24-48 | ⭐⭐ Medium | App Platform users |
+| VPS | $12-24 | ⭐⭐⭐ Hard | Full control |
+| AWS/GCP | $30-100+ | ⭐⭐⭐⭐ Very Hard | Enterprise |
+
+---
+
+## Next Steps
+
+1. Choose a platform
+2. Push code to GitHub
+3. Follow platform-specific steps above
+4. Test deployment
+5. Monitor logs for errors
+6. Enjoy your deployed app! 🚀

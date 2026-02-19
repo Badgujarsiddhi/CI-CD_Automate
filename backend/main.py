@@ -105,6 +105,19 @@ PGX_RULES: Dict[tuple, Dict[str, Any]] = {
             "notes": "Intermediate metabolizers may have reduced efficacy. Consider alternative opioids or monitor closely for inadequate pain control."
         }
     },
+    ("CODEINE", "CYP2D6", "NM"): {
+        "risk_label": "Safe",
+        "severity": "none",
+        "recommendation": "Use standard dosing with routine clinical monitoring.",
+        "dosing": {
+            "action": "standard_dose",
+            "initial_dose": "Standard dosing as per product label",
+            "alternative_drugs": None,
+            "monitoring": ["Pain control", "Adverse effects", "Opioid tolerance"],
+            "cpic_guideline": "CPIC Codeine-CYP2D6 (2014, updated 2021)",
+            "notes": "Normal metabolizers have typical codeine-to-morphine conversion. Standard dosing is appropriate."
+        }
+    },
     ("CLOPIDOGREL", "CYP2C19", "PM"): {
         "risk_label": "Ineffective",
         "severity": "high",
@@ -157,6 +170,19 @@ PGX_RULES: Dict[tuple, Dict[str, Any]] = {
             "notes": "Intermediate metabolizers may require lower warfarin doses. Start at reduced dose and monitor INR closely."
         }
     },
+    ("WARFARIN", "CYP2C9", "NM"): {
+        "risk_label": "Safe",
+        "severity": "none",
+        "recommendation": "Use standard dosing with routine clinical monitoring.",
+        "dosing": {
+            "action": "standard_dose",
+            "initial_dose": "Standard starting dose (typically 5 mg daily) with INR-guided titration",
+            "alternative_drugs": None,
+            "monitoring": ["INR until stable", "Bleeding signs"],
+            "cpic_guideline": "CPIC Warfarin-CYP2C9/VKORC1 (2017, updated 2023)",
+            "notes": "Normal metabolizers have typical warfarin clearance. Standard dosing with INR monitoring is appropriate."
+        }
+    },
     ("SIMVASTATIN", "SLCO1B1", "PM"): {
         "risk_label": "Toxic",
         "severity": "high",
@@ -181,6 +207,19 @@ PGX_RULES: Dict[tuple, Dict[str, Any]] = {
             "monitoring": ["Creatine kinase (CK) levels", "Muscle symptoms"],
             "cpic_guideline": "CPIC Simvastatin-SLCO1B1 (2014, updated 2022)",
             "notes": "Intermediate function variants may increase simvastatin exposure. Limit dose to 40 mg daily and monitor for myopathy."
+        }
+    },
+    ("SIMVASTATIN", "SLCO1B1", "NM"): {
+        "risk_label": "Safe",
+        "severity": "none",
+        "recommendation": "Use standard dosing with routine clinical monitoring.",
+        "dosing": {
+            "action": "standard_dose",
+            "initial_dose": "Standard dosing as per product label (up to 80 mg daily if needed)",
+            "alternative_drugs": None,
+            "monitoring": ["LDL-C", "Creatine kinase (CK) if symptoms", "Muscle symptoms"],
+            "cpic_guideline": "CPIC Simvastatin-SLCO1B1 (2014, updated 2022)",
+            "notes": "Normal function variants. Standard simvastatin dosing is appropriate."
         }
     },
     ("AZATHIOPRINE", "TPMT", "PM"): {
@@ -233,6 +272,19 @@ PGX_RULES: Dict[tuple, Dict[str, Any]] = {
             "monitoring": ["Complete blood count weekly", "Gastrointestinal toxicity", "Severe toxicity signs"],
             "cpic_guideline": "CPIC Fluoropyrimidines-DPYD (2013, updated 2020)",
             "notes": "Intermediate metabolizers have reduced DPD activity. Reduce starting dose by 50% and monitor closely for severe toxicity."
+        }
+    },
+    ("FLUOROURACIL", "DPYD", "NM"): {
+        "risk_label": "Safe",
+        "severity": "none",
+        "recommendation": "Use standard dosing with routine clinical monitoring.",
+        "dosing": {
+            "action": "standard_dose",
+            "initial_dose": "Standard dose per chemotherapy regimen",
+            "alternative_drugs": None,
+            "monitoring": ["Complete blood count", "Gastrointestinal toxicity", "Routine toxicity monitoring"],
+            "cpic_guideline": "CPIC Fluoropyrimidines-DPYD (2013, updated 2020)",
+            "notes": "Normal metabolizers have typical DPD enzyme function. Standard fluorouracil dosing is appropriate."
         }
     },
 }
