@@ -6,5 +6,7 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  // Expose environment variables to the client
+  envPrefix: "VITE_",
 });
 

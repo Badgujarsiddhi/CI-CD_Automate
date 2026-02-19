@@ -27,12 +27,24 @@ interface ClinicalRecommendation {
 
 interface LlmExplanation {
   summary: string;
+  mechanism?: string;
+  source?: string;
+  cited_variants?: string[];
   [key: string]: unknown;
 }
 
 interface QualityMetrics {
   vcf_parsing_success: boolean;
   [key: string]: unknown;
+}
+
+interface CpicDosingRecommendations {
+  action: string;
+  initial_dose: string | null;
+  alternative_drugs: string[] | null;
+  monitoring: string[];
+  cpic_guideline: string;
+  notes: string;
 }
 
 interface DrugResult {
@@ -43,6 +55,7 @@ interface DrugResult {
   pharmacogenomic_profile: PharmacogenomicProfile;
   clinical_recommendation: ClinicalRecommendation;
   llm_generated_explanation: LlmExplanation;
+  cpic_dosing_recommendations?: CpicDosingRecommendations;
   quality_metrics: QualityMetrics;
 }
 
@@ -55,7 +68,7 @@ const SUPPORTED_DRUGS = [
   "FLUOROURACIL",
 ];
 
-const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 export const App: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -296,9 +309,131 @@ export const App: React.FC = () => {
                       <p>{r.clinical_recommendation.summary}</p>
                     </section>
 
+                    {r.cpic_dosing_recommendations && (
+                      <section>
+                        <h3>CPIC Dosing Recommendations</h3>
+                        <div style={{ 
+                          backgroundColor: "#f9fafb", 
+                          padding: "1rem", 
+                          borderRadius: "8px",
+                          border: "1px solid #e5e7eb"
+                        }}>
+                          <div style={{ marginBottom: "1rem" }}>
+                            <h4 style={{ fontSize: "0.95em", fontWeight: "600", marginBottom: "0.5rem", color: "#374151" }}>
+                              Action Required
+                            </h4>
+                            <p style={{ 
+                              fontWeight: "600",
+                              color: r.cpic_dosing_recommendations.action === "avoid" ? "#dc2626" : 
+                                     r.cpic_dosing_recommendations.action === "avoid_or_severe_reduction" ? "#dc2626" :
+                                     r.cpic_dosing_recommendations.action === "reduce_dose" ? "#f59e0b" : "#059669"
+                            }}>
+                              {r.cpic_dosing_recommendations.action === "avoid" ? "⚠️ Avoid Drug" :
+                               r.cpic_dosing_recommendations.action === "avoid_or_severe_reduction" ? "⚠️ Avoid or Severe Dose Reduction Required" :
+                               r.cpic_dosing_recommendations.action === "reduce_dose" ? "📉 Reduce Dose" :
+                               r.cpic_dosing_recommendations.action === "consider_alternative" ? "🔄 Consider Alternative" :
+                               r.cpic_dosing_recommendations.action}
+                            </p>
+                          </div>
+
+                          {r.cpic_dosing_recommendations.initial_dose && (
+                            <div style={{ marginBottom: "1rem" }}>
+                              <h4 style={{ fontSize: "0.95em", fontWeight: "600", marginBottom: "0.5rem", color: "#374151" }}>
+                                Recommended Initial Dose
+                              </h4>
+                              <p style={{ fontFamily: "monospace", fontSize: "0.9em", color: "#1f2937" }}>
+                                {r.cpic_dosing_recommendations.initial_dose}
+                              </p>
+                            </div>
+                          )}
+
+                          {r.cpic_dosing_recommendations.alternative_drugs && r.cpic_dosing_recommendations.alternative_drugs.length > 0 && (
+                            <div style={{ marginBottom: "1rem" }}>
+                              <h4 style={{ fontSize: "0.95em", fontWeight: "600", marginBottom: "0.5rem", color: "#374151" }}>
+                                Alternative Drugs
+                              </h4>
+                              <ul style={{ marginLeft: "1.5rem", marginTop: "0.25rem" }}>
+                                {r.cpic_dosing_recommendations.alternative_drugs.map((alt, idx) => (
+                                  <li key={idx} style={{ marginBottom: "0.25rem", fontSize: "0.9em" }}>
+                                    {alt}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {r.cpic_dosing_recommendations.monitoring && r.cpic_dosing_recommendations.monitoring.length > 0 && (
+                            <div style={{ marginBottom: "1rem" }}>
+                              <h4 style={{ fontSize: "0.95em", fontWeight: "600", marginBottom: "0.5rem", color: "#374151" }}>
+                                Required Monitoring
+                              </h4>
+                              <ul style={{ marginLeft: "1.5rem", marginTop: "0.25rem" }}>
+                                {r.cpic_dosing_recommendations.monitoring.map((monitor, idx) => (
+                                  <li key={idx} style={{ marginBottom: "0.25rem", fontSize: "0.9em" }}>
+                                    {monitor}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          <div style={{ marginBottom: "1rem" }}>
+                            <h4 style={{ fontSize: "0.95em", fontWeight: "600", marginBottom: "0.5rem", color: "#374151" }}>
+                              CPIC Guideline Reference
+                            </h4>
+                            <p style={{ fontSize: "0.85em", color: "#6b7280", fontStyle: "italic" }}>
+                              {r.cpic_dosing_recommendations.cpic_guideline}
+                            </p>
+                          </div>
+
+                          {r.cpic_dosing_recommendations.notes && (
+                            <div>
+                              <h4 style={{ fontSize: "0.95em", fontWeight: "600", marginBottom: "0.5rem", color: "#374151" }}>
+                                Clinical Notes
+                              </h4>
+                              <p style={{ fontSize: "0.9em", color: "#4b5563", lineHeight: "1.5" }}>
+                                {r.cpic_dosing_recommendations.notes}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </section>
+                    )}
+
                     <section>
-                      <h3>Explanation</h3>
-                      <p>{r.llm_generated_explanation.summary}</p>
+                      <h3>LLM-Generated Explanation</h3>
+                      {r.llm_generated_explanation.source && (
+                        <p className="hint" style={{ fontSize: "0.85em", color: "#6b7280" }}>
+                          Generated by: {r.llm_generated_explanation.source}
+                        </p>
+                      )}
+                      <div style={{ marginTop: "0.5rem" }}>
+                        <h4 style={{ fontSize: "1em", fontWeight: "600", marginBottom: "0.5rem" }}>
+                          Summary
+                        </h4>
+                        <p>{r.llm_generated_explanation.summary}</p>
+                      </div>
+                      {r.llm_generated_explanation.mechanism && 
+                       r.llm_generated_explanation.mechanism !== r.llm_generated_explanation.summary && (
+                        <div style={{ marginTop: "1rem" }}>
+                          <h4 style={{ fontSize: "1em", fontWeight: "600", marginBottom: "0.5rem" }}>
+                            Biological Mechanism
+                          </h4>
+                          <p>{r.llm_generated_explanation.mechanism}</p>
+                        </div>
+                      )}
+                      {r.llm_generated_explanation.cited_variants && 
+                       Array.isArray(r.llm_generated_explanation.cited_variants) &&
+                       r.llm_generated_explanation.cited_variants.length > 0 && (
+                        <div style={{ marginTop: "1rem" }}>
+                          <h4 style={{ fontSize: "1em", fontWeight: "600", marginBottom: "0.5rem" }}>
+                            Cited Variants
+                          </h4>
+                          <p style={{ fontFamily: "monospace", fontSize: "0.9em" }}>
+                            {r.llm_generated_explanation.cited_variants.join(", ")}
+                          </p>
+                        </div>
+                      )}
                     </section>
 
                     <section>

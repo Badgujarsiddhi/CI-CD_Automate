@@ -64,72 +64,176 @@ PGX_VARIANT_EFFECTS: Dict[str, Dict[str, str]] = {
     },
 }
 
-# Drug + gene + phenotype → risk / severity / CPIC-like text
-PGX_RULES: Dict[tuple, Dict[str, str]] = {
+# Drug + gene + phenotype → risk / severity / CPIC-aligned dosing recommendations
+PGX_RULES: Dict[tuple, Dict[str, Any]] = {
     ("CODEINE", "CYP2D6", "PM"): {
         "risk_label": "Toxic",
         "severity": "high",
         "recommendation": "Avoid codeine; consider non‑CYP2D6 opioid per CPIC guidance.",
+        "dosing": {
+            "action": "avoid",
+            "initial_dose": None,
+            "alternative_drugs": ["Morphine", "Hydromorphone", "Oxycodone", "Hydrocodone", "Tramadol"],
+            "monitoring": ["Respiratory depression", "Sedation", "Opioid toxicity signs"],
+            "cpic_guideline": "CPIC Codeine-CYP2D6 (2014, updated 2021)",
+            "notes": "Poor metabolizers have reduced conversion to active morphine, leading to poor analgesia. Consider alternative opioids that do not require CYP2D6 activation."
+        }
     },
     ("CODEINE", "CYP2D6", "UM"): {
         "risk_label": "Toxic",
         "severity": "high",
         "recommendation": "Avoid codeine; risk of life‑threatening opioid toxicity.",
+        "dosing": {
+            "action": "avoid",
+            "initial_dose": None,
+            "alternative_drugs": ["Morphine", "Hydromorphone", "Oxycodone", "Hydrocodone"],
+            "monitoring": ["Respiratory depression", "Life-threatening toxicity", "Excessive sedation"],
+            "cpic_guideline": "CPIC Codeine-CYP2D6 (2014, updated 2021)",
+            "notes": "Ultra-rapid metabolizers convert codeine to morphine rapidly, increasing risk of life-threatening respiratory depression. Avoid codeine entirely."
+        }
     },
     ("CODEINE", "CYP2D6", "IM"): {
         "risk_label": "Ineffective",
         "severity": "moderate",
         "recommendation": "Consider alternative to codeine or higher monitoring for poor analgesia.",
+        "dosing": {
+            "action": "consider_alternative",
+            "initial_dose": "Standard dose, but monitor for efficacy",
+            "alternative_drugs": ["Morphine", "Oxycodone", "Hydrocodone"],
+            "monitoring": ["Analgesic response", "Need for dose escalation", "Adverse effects"],
+            "cpic_guideline": "CPIC Codeine-CYP2D6 (2014, updated 2021)",
+            "notes": "Intermediate metabolizers may have reduced efficacy. Consider alternative opioids or monitor closely for inadequate pain control."
+        }
     },
     ("CLOPIDOGREL", "CYP2C19", "PM"): {
         "risk_label": "Ineffective",
         "severity": "high",
-        "recommendation": "Avoid clopidogrel; use alternative P2Y12 inhibitor (e.g., prasugrel, ticagrelor).",
+        "recommendation": "Avoid clopidogrel; use alternative P2Y12 inhibitor per CPIC guidance.",
+        "dosing": {
+            "action": "avoid",
+            "initial_dose": None,
+            "alternative_drugs": ["Prasugrel 10 mg daily", "Ticagrelor 90 mg twice daily"],
+            "monitoring": ["Platelet function", "Cardiovascular events", "Bleeding risk"],
+            "cpic_guideline": "CPIC Clopidogrel-CYP2C19 (2013, updated 2022)",
+            "notes": "Poor metabolizers have significantly reduced clopidogrel activation, leading to increased risk of cardiovascular events. Use alternative P2Y12 inhibitors."
+        }
     },
     ("CLOPIDOGREL", "CYP2C19", "IM"): {
         "risk_label": "Ineffective",
         "severity": "moderate",
-        "recommendation": "Consider alternative antiplatelet agent or enhanced platelet monitoring.",
+        "recommendation": "Consider alternative antiplatelet agent or enhanced platelet monitoring per CPIC guidance.",
+        "dosing": {
+            "action": "consider_alternative",
+            "initial_dose": "Standard dose (75 mg daily), but consider alternatives",
+            "alternative_drugs": ["Prasugrel 10 mg daily", "Ticagrelor 90 mg twice daily"],
+            "monitoring": ["Platelet function testing", "Cardiovascular events", "Bleeding risk"],
+            "cpic_guideline": "CPIC Clopidogrel-CYP2C19 (2013, updated 2022)",
+            "notes": "Intermediate metabolizers may have reduced clopidogrel efficacy. Consider alternative P2Y12 inhibitors or enhanced monitoring."
+        }
     },
     ("WARFARIN", "CYP2C9", "PM"): {
         "risk_label": "Toxic",
         "severity": "high",
-        "recommendation": "Start at substantially reduced dose and titrate slowly with INR monitoring.",
+        "recommendation": "Start at substantially reduced dose and titrate slowly with INR monitoring per CPIC guidance.",
+        "dosing": {
+            "action": "reduce_dose",
+            "initial_dose": "Reduce by 30-50% from standard starting dose (typically 2-3 mg daily instead of 5 mg)",
+            "alternative_drugs": ["Direct oral anticoagulants (DOACs) - consider if appropriate"],
+            "monitoring": ["INR weekly until stable, then monthly", "Bleeding signs", "Thromboembolic events"],
+            "cpic_guideline": "CPIC Warfarin-CYP2C9/VKORC1 (2017, updated 2023)",
+            "notes": "Poor metabolizers have reduced warfarin clearance, requiring lower doses. Start at 30-50% of standard dose and titrate based on INR."
+        }
     },
     ("WARFARIN", "CYP2C9", "IM"): {
         "risk_label": "Adjust Dosage",
         "severity": "moderate",
-        "recommendation": "Use lower initial warfarin dose and close INR monitoring.",
+        "recommendation": "Use lower initial warfarin dose and close INR monitoring per CPIC guidance.",
+        "dosing": {
+            "action": "reduce_dose",
+            "initial_dose": "Reduce by 20-30% from standard starting dose (typically 3-4 mg daily instead of 5 mg)",
+            "alternative_drugs": None,
+            "monitoring": ["INR every 1-2 weeks until stable", "Bleeding signs"],
+            "cpic_guideline": "CPIC Warfarin-CYP2C9/VKORC1 (2017, updated 2023)",
+            "notes": "Intermediate metabolizers may require lower warfarin doses. Start at reduced dose and monitor INR closely."
+        }
     },
     ("SIMVASTATIN", "SLCO1B1", "PM"): {
         "risk_label": "Toxic",
         "severity": "high",
-        "recommendation": "Avoid high‑dose simvastatin; use lower dose or alternative statin.",
+        "recommendation": "Avoid high‑dose simvastatin; use lower dose or alternative statin per CPIC guidance.",
+        "dosing": {
+            "action": "reduce_dose",
+            "initial_dose": "Maximum 20 mg daily (avoid 40-80 mg doses)",
+            "alternative_drugs": ["Pravastatin", "Rosuvastatin", "Atorvastatin"],
+            "monitoring": ["Creatine kinase (CK) levels", "Muscle symptoms", "Myopathy signs"],
+            "cpic_guideline": "CPIC Simvastatin-SLCO1B1 (2014, updated 2022)",
+            "notes": "Poor function variants increase simvastatin exposure and myopathy risk. Limit to 20 mg daily or use alternative statin."
+        }
     },
     ("SIMVASTATIN", "SLCO1B1", "IM"): {
         "risk_label": "Adjust Dosage",
         "severity": "moderate",
-        "recommendation": "Use reduced simvastatin dose and monitor for myopathy.",
+        "recommendation": "Use reduced simvastatin dose and monitor for myopathy per CPIC guidance.",
+        "dosing": {
+            "action": "reduce_dose",
+            "initial_dose": "Maximum 40 mg daily (avoid 80 mg dose)",
+            "alternative_drugs": ["Pravastatin", "Rosuvastatin"],
+            "monitoring": ["Creatine kinase (CK) levels", "Muscle symptoms"],
+            "cpic_guideline": "CPIC Simvastatin-SLCO1B1 (2014, updated 2022)",
+            "notes": "Intermediate function variants may increase simvastatin exposure. Limit dose to 40 mg daily and monitor for myopathy."
+        }
     },
     ("AZATHIOPRINE", "TPMT", "PM"): {
         "risk_label": "Toxic",
         "severity": "critical",
-        "recommendation": "Avoid standard azathioprine doses; consider alternative or drastic dose reduction.",
+        "recommendation": "Avoid standard azathioprine doses; consider alternative or drastic dose reduction per CPIC guidance.",
+        "dosing": {
+            "action": "avoid_or_severe_reduction",
+            "initial_dose": "Reduce by 90% (typically 0.5-1 mg/kg/day instead of 2-3 mg/kg/day) OR avoid entirely",
+            "alternative_drugs": ["6-mercaptopurine (with same precautions)", "Mycophenolate mofetil", "Methotrexate"],
+            "monitoring": ["Complete blood count (CBC) weekly for first month, then monthly", "Myelosuppression signs", "Infection risk"],
+            "cpic_guideline": "CPIC Azathioprine-TPMT (2011, updated 2018)",
+            "notes": "Poor metabolizers have severe deficiency leading to life-threatening myelosuppression. Reduce dose by 90% or avoid entirely. Consider alternatives."
+        }
     },
     ("AZATHIOPRINE", "TPMT", "IM"): {
         "risk_label": "Adjust Dosage",
         "severity": "high",
-        "recommendation": "Reduce starting dose (30–80%) and monitor closely for myelosuppression.",
+        "recommendation": "Reduce starting dose (30–80%) and monitor closely for myelosuppression per CPIC guidance.",
+        "dosing": {
+            "action": "reduce_dose",
+            "initial_dose": "Reduce by 30-50% (typically 1-1.5 mg/kg/day instead of 2-3 mg/kg/day)",
+            "alternative_drugs": ["Mycophenolate mofetil", "Methotrexate"],
+            "monitoring": ["Complete blood count (CBC) every 1-2 weeks initially, then monthly", "Myelosuppression signs"],
+            "cpic_guideline": "CPIC Azathioprine-TPMT (2011, updated 2018)",
+            "notes": "Intermediate metabolizers have reduced TPMT activity. Reduce starting dose by 30-50% and monitor CBC closely for myelosuppression."
+        }
     },
     ("FLUOROURACIL", "DPYD", "PM"): {
         "risk_label": "Toxic",
         "severity": "critical",
-        "recommendation": "Avoid standard fluorouracil dosing; consider alternative regimen.",
+        "recommendation": "Avoid standard fluorouracil dosing; consider alternative regimen per CPIC guidance.",
+        "dosing": {
+            "action": "avoid",
+            "initial_dose": None,
+            "alternative_drugs": ["Capecitabine (with same precautions)", "Alternative chemotherapy regimens"],
+            "monitoring": ["Complete blood count", "Gastrointestinal toxicity", "Neurological symptoms", "Severe toxicity signs"],
+            "cpic_guideline": "CPIC Fluoropyrimidines-DPYD (2013, updated 2020)",
+            "notes": "Poor metabolizers have severe DPD deficiency leading to life-threatening toxicity. Avoid fluorouracil and capecitabine. Use alternative chemotherapy."
+        }
     },
     ("FLUOROURACIL", "DPYD", "IM"): {
         "risk_label": "Adjust Dosage",
         "severity": "high",
-        "recommendation": "Substantially reduce starting dose and monitor for severe toxicity.",
+        "recommendation": "Substantially reduce starting dose and monitor for severe toxicity per CPIC guidance.",
+        "dosing": {
+            "action": "reduce_dose",
+            "initial_dose": "Reduce by 50% from standard dose",
+            "alternative_drugs": ["Alternative chemotherapy regimens"],
+            "monitoring": ["Complete blood count weekly", "Gastrointestinal toxicity", "Severe toxicity signs"],
+            "cpic_guideline": "CPIC Fluoropyrimidines-DPYD (2013, updated 2020)",
+            "notes": "Intermediate metabolizers have reduced DPD activity. Reduce starting dose by 50% and monitor closely for severe toxicity."
+        }
     },
 }
 
@@ -358,6 +462,11 @@ def build_drug_assessment(drug: str, vcf_summary: Dict[str, Any]) -> Dict[str, A
         if rule
         else "Use standard dosing with routine clinical monitoring."
     )
+    
+    # Extract CPIC dosing recommendations if available
+    dosing_recommendations = None
+    if rule and "dosing" in rule:
+        dosing_recommendations = rule["dosing"]
 
     llm_expl = build_llm_explanation(
         upper_drug,
@@ -369,7 +478,7 @@ def build_drug_assessment(drug: str, vcf_summary: Dict[str, Any]) -> Dict[str, A
         risk_label,
     )
 
-    return {
+    response_data = {
         "patient_id": vcf_summary.get("patient_id", "PATIENT_UNKNOWN"),
         "drug": upper_drug,
         "timestamp": now,
@@ -394,6 +503,12 @@ def build_drug_assessment(drug: str, vcf_summary: Dict[str, Any]) -> Dict[str, A
             "gene_count": len(genes),
         },
     }
+    
+    # Add CPIC dosing recommendations if available
+    if dosing_recommendations:
+        response_data["cpic_dosing_recommendations"] = dosing_recommendations
+    
+    return response_data
 
 
 @app.post("/api/analyze")
