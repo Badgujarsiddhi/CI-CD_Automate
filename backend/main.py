@@ -1,7 +1,20 @@
 from datetime import datetime
+import logging
 import os
+from pathlib import Path
 from typing import List, Dict, Any
 import requests
+
+# Load .env from backend folder (for local runs); Render/Vercel set env vars in dashboard
+try:
+    from dotenv import load_dotenv
+    _env_path = Path(__file__).resolve().parent / ".env"
+    load_dotenv(_env_path)
+except ImportError:
+    pass
+
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(__name__)
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,7 +27,7 @@ except ImportError:
 
 # Groq API key – replace with your key from https://console.groq.com/keys
 # WARNING: Do not commit real keys to public repositories
-GROQ_API_KEY_HARDCODED = "YOUR_GROQ_API_KEY_HERE"
+GROQ_API_KEY_HARDCODED = "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"
 
 app = FastAPI(title="PharmaGuide Backend", version="1.0.0")
 
@@ -470,12 +483,14 @@ def build_llm_explanation(
             "source": f"groq_{groq_model}",
         }
     except Exception as exc:
+        err_msg = str(exc).strip() or type(exc).__name__
+        log.exception("Groq LLM call failed: %s", exc)
         return {
             "summary": (
                 "A narrative explanation could not be generated at this time. "
                 "Use the structured risk assessment and recommendation above to guide interpretation."
             ),
-            "mechanism": "Mechanistic narrative unavailable due to a transient generation issue.",
+            "mechanism": f"Mechanistic narrative unavailable. Reason: {err_msg}",
             "cited_variants": rsids_for_gene,
             "source": "llm_error_placeholder",
         }
@@ -604,4 +619,3 @@ async def analyze(
 @app.get("/health")
 def health() -> Dict[str, str]:
     return {"status": "ok"}
-
