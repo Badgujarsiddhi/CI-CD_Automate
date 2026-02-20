@@ -406,7 +406,7 @@ def build_llm_explanation(
 
     # Get Groq API key: env var first, then fallback to hardcoded
     groq_api_key = os.getenv("GROQ_API_KEY", "").strip() or GROQ_API_KEY_HARDCODED
-    groq_model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")  # Fast, free model
+    groq_model = os.getenv("GROQ_MODEL", "llama-3.2:3b-instant")  # Fast, free model
 
     if not groq_api_key or groq_api_key == "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" or not GROQ_AVAILABLE:
         return {
