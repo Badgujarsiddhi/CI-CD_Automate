@@ -408,7 +408,7 @@ def build_llm_explanation(
     groq_api_key = os.getenv("GROQ_API_KEY", "").strip() or GROQ_API_KEY_HARDCODED
     groq_model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")  # Fast, free model
 
-    if not groq_api_key or groq_api_key == "YOUR_GROQ_API_KEY_HERE" or not GROQ_AVAILABLE:
+    if not groq_api_key or groq_api_key == "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" or not GROQ_AVAILABLE:
         return {
             "summary": (
                 "A narrative explanation could not be generated automatically. "
